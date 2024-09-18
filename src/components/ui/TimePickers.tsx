@@ -34,6 +34,18 @@ export default function TimePicker() {
     }
   }, [open, selectedHour, selectedMinute]);
 
+  useEffect(() => {
+    if (open) {
+      if (activeColumn === 'hours' && hoursRef.current) {
+        const hourElement = hoursRef.current.children[focusedHour] as HTMLElement;
+        hourElement.scrollIntoView({ block: 'nearest' });
+      } else if (activeColumn === 'minutes' && minutesRef.current) {
+        const minuteElement = minutesRef.current.children[focusedMinute] as HTMLElement;
+        minuteElement.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [focusedHour, focusedMinute, activeColumn, open]);
+
   const scrollToSelected = () => {
     if (hoursRef.current && selectedHour !== null) {
       const hourElement = hoursRef.current.children[selectedHour] as HTMLElement;
@@ -78,22 +90,9 @@ export default function TimePicker() {
     }
   };
 
-  useEffect(() => {
-    if (open) {
-      if (activeColumn === 'hours' && hoursRef.current) {
-        const hourElement = hoursRef.current.children[focusedHour] as HTMLElement;
-        hourElement.scrollIntoView({ block: 'nearest' });
-      } else if (activeColumn === 'minutes' && minutesRef.current) {
-        const minuteElement = minutesRef.current.children[focusedMinute] as HTMLElement;
-        minuteElement.scrollIntoView({ block: 'nearest' });
-      }
-    }
-  }, [focusedHour, focusedMinute, activeColumn, open]);
-
   const selectTime = (hour: number, minute: number) => {
     setSelectedHour(hour);
     setSelectedMinute(minute);
-    setOpen(false);
   };
 
   const getFormattedTime = () => {
