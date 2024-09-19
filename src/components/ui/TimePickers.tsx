@@ -17,150 +17,154 @@ interface TimePickerProps {
   minTime?: string;
 }
 
-export default function TimePicker({ value, onChange, minTime }: TimePickerProps) {
+export default function TimePicker({
+  value,
+  onChange,
+  minTime,
+}: TimePickerProps) {
   const [open, setOpen] = useState(false);
   const [focusedHour, setFocusedHour] = useState(0);
   const [focusedMinute, setFocusedMinute] = useState(0);
-  const [activeColumn, setActiveColumn] = useState<'hours' | 'minutes'>('hours');
+  const [activeColumn, setActiveColumn] = useState<"hours" | "minutes">(
+    "hours"
+  );
   const hoursRef = useRef<HTMLDivElement>(null);
   const minutesRef = useRef<HTMLDivElement>(null);
 
-  const listClassName = "max-h-[200px] overflow-y-auto flex flex-col px-2";
+  const listClassName = "max-h-[200px] overflow-y-auto flex flex-col px-3";
 
   const parseTime = (timeString: string | null): [number, number] => {
     if (!timeString) return [0, 0];
-    const [hours, minutes] = timeString.split(':').map(Number);
+    const [hours, minutes] = timeString.split(":").map(Number);
+    return [hours, minutes];
+  };
+
+  const parseMinTime = (
+    minTimeString: string | undefined
+  ): [number, number] => {
+    if (!minTimeString) return [0, 0];
+    const [hours, minutes] = minTimeString.split(":").map(Number);
     return [hours, minutes];
   };
 
   const [selectedHour, selectedMinute] = parseTime(value);
 
-  const parseMinTime = (minTimeString: string | undefined): [number, number] => {
-    if (!minTimeString) return [0, 0];
-    const [hours, minutes] = minTimeString.split(':').map(Number);
-    return [hours, minutes];
-  };
-
   const [minHour, minMinute] = parseMinTime(minTime);
-
-  useEffect(() => {
-    if (open) {
-      setFocusedHour(Math.max(selectedHour, minHour));
-      setFocusedMinute(
-        selectedHour > minHour ? selectedMinute : 
-        selectedHour === minHour ? Math.max(selectedMinute, minMinute) : 
-        0
-      );
-      setActiveColumn('hours');
-      setTimeout(() => {
-        scrollToSelected();
-      }, 0);
-    }
-  }, [open, selectedHour, selectedMinute, minHour, minMinute]);
-
-  const scrollToSelected = () => {
-    if (hoursRef.current) {
-      const hourElement = hoursRef.current.children[focusedHour] as HTMLElement;
-      hourElement.scrollIntoView({ block: 'center' });
-    }
-    if (minutesRef.current) {
-      const minuteElement = minutesRef.current.children[focusedMinute] as HTMLElement;
-      minuteElement.scrollIntoView({ block: 'center' });
-    }
-  };
-
-  const isHourDisabled = (hour: number) => {
-    return hour < minHour;
-  };
-
-  const isMinuteDisabled = (hour: number, minute: number) => {
-    if (hour > minHour) return false;
-    if (hour === minHour) return minute < minMinute;
-    return true;
-  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
-      case 'ArrowUp':
+      case "ArrowUp":
         e.preventDefault();
-        if (activeColumn === 'hours') {
+        if (activeColumn === "hours") {
           setFocusedHour((prev) => {
-            let next = prev > 0 ? prev - 1 : 23;
-            while (next < minHour) {
-              next = next > 0 ? next - 1 : 23;
+            const next = prev > 0 ? prev - 1 : 23;
+            if (isDisabledHour(next)) {
+              return 23;
             }
             return next;
           });
         } else {
           setFocusedMinute((prev) => {
-            if (focusedHour > minHour) {
-              return prev > 0 ? prev - 1 : 59;
-            } else if (focusedHour === minHour) {
-              return Math.max(minMinute, prev > minMinute ? prev - 1 : 59);
-            } else {
+            const next = prev > 0 ? prev - 1 : 59;
+            if (disabledMinute(selectedHour, next)) {
               return 59;
             }
+            return next;
           });
         }
         break;
-      case 'ArrowDown':
+      case "ArrowDown":
         e.preventDefault();
-        if (activeColumn === 'hours') {
+        if (activeColumn === "hours") {
           setFocusedHour((prev) => {
-            let next = prev < 23 ? prev + 1 : 0;
-            while (next < minHour) {
-              next = next < 23 ? next + 1 : 0;
+            const next = prev < 23 ? prev + 1 : 0;
+            if (isDisabledHour(next)) {
+              return minHour;
             }
             return next;
           });
         } else {
           setFocusedMinute((prev) => {
-            if (focusedHour > minHour) {
-              return prev < 59 ? prev + 1 : 0;
-            } else if (focusedHour === minHour) {
-              return prev < 59 ? Math.max(minMinute, prev + 1) : minMinute;
-            } else {
+            const next = prev < 59 ? prev + 1 : 0;
+            if (disabledMinute(selectedHour, next)) {
               return minMinute;
             }
+            return next;
           });
         }
         break;
-      case 'ArrowLeft':
+      case "ArrowLeft":
         e.preventDefault();
-        setActiveColumn('hours');
+        setActiveColumn("hours");
+        setFocusedMinute(() => selectedMinute);
         break;
-      case 'ArrowRight':
+      case "ArrowRight":
         e.preventDefault();
-        setActiveColumn('minutes');
-        if (focusedHour === minHour && focusedMinute < minMinute) {
-          setFocusedMinute(minMinute);
-        }
+        setFocusedHour(() => selectedHour);
+        setActiveColumn("minutes");
         break;
-      case 'Enter':
+      case "Enter":
         e.preventDefault();
         selectTime(focusedHour, focusedMinute);
         break;
     }
   };
 
+  function isDisabledHour(hour: number) {
+    return hour < minHour;
+  }
+
+  function disabledMinute(hour: number, minute: number) {
+    if (hour === minHour) return minute < minMinute;
+    return false;
+  }
+
   useEffect(() => {
     if (open) {
-      if (activeColumn === 'hours' && hoursRef.current) {
-        const hourElement = hoursRef.current.children[focusedHour] as HTMLElement;
-        hourElement.scrollIntoView({ block: 'nearest' });
-      } else if (activeColumn === 'minutes' && minutesRef.current) {
-        const minuteElement = minutesRef.current.children[focusedMinute] as HTMLElement;
-        minuteElement.scrollIntoView({ block: 'nearest' });
+      if (activeColumn === "hours" && hoursRef.current) {
+        const hourElement = hoursRef.current.children[
+          focusedHour
+        ] as HTMLElement;
+        hourElement.scrollIntoView({ block: "nearest" });
+      } else if (activeColumn === "minutes" && minutesRef.current) {
+        const minuteElement = minutesRef.current.children[
+          focusedMinute
+        ] as HTMLElement;
+        minuteElement.scrollIntoView({ block: "nearest" });
       }
     }
   }, [focusedHour, focusedMinute, activeColumn, open]);
 
+  useEffect(() => {
+    if (open) {
+      setFocusedHour(selectedHour ?? 0);
+      setFocusedMinute(selectedMinute ?? 0);
+      setActiveColumn("hours");
+      setTimeout(() => {
+        minutesRef.current?.children[selectedMinute]?.scrollIntoView({
+          block: "center",
+        });
+        hoursRef.current?.children[selectedHour]?.scrollIntoView({
+          block: "center",
+        });
+      }, 0);
+    }
+  }, [open]);
+
   const selectTime = (hour: number, minute: number) => {
+    // validamos que el minuto selecionado no se menor que el minuto mínimo
     if (hour === minHour && minute < minMinute) {
+      minutesRef.current?.children[minMinute]?.scrollIntoView({
+        block: "center",
+      });
       minute = minMinute;
     }
-    onChange(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-    setOpen(false);
+
+    onChange(
+      `${hour.toString().padStart(2, "0")}:${minute
+        .toString()
+        .padStart(2, "0")}`
+    );
   };
 
   return (
@@ -179,7 +183,7 @@ export default function TimePicker({ value, onChange, minTime }: TimePickerProps
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[160px] p-0" onKeyDown={handleKeyDown}>
-        <div className="grid grid-cols-2 ">
+        <div className="grid grid-cols-2">
           <div
             ref={hoursRef}
             className={listClassName}
@@ -189,15 +193,19 @@ export default function TimePicker({ value, onChange, minTime }: TimePickerProps
               <button
                 key={hour}
                 className={cn(
-                  "hover:bg-muted p-2 rounded-md text-sm",
-                  (activeColumn === 'hours' && focusedHour === index) && "bg-muted",
-                  selectedHour === hour && "bg-primary text-primary-foreground pointer-events-none",
-                  isHourDisabled(hour) && "opacity-50 cursor-not-allowed"
+                  "hover:bg-muted p-2 rounded-md text-sm disabled:opacity-50 disabled:line-through ",
+                  activeColumn === "hours" &&
+                    focusedHour === index &&
+                    "bg-muted outline  outline-1",
+                  selectedHour === hour &&
+                    "bg-primary text-primary-foreground pointer-events-none"
                 )}
-                onClick={() => !isHourDisabled(hour) && selectTime(hour, selectedMinute)}
-                disabled={isHourDisabled(hour)}
+                disabled={isDisabledHour(hour)}
+                onClick={() => {
+                  selectTime(hour, selectedMinute);
+                }}
               >
-                {hour.toString().padStart(2, '0')}
+                {hour.toString().padStart(2, "0")}
               </button>
             ))}
           </div>
@@ -210,15 +218,17 @@ export default function TimePicker({ value, onChange, minTime }: TimePickerProps
               <button
                 key={minute}
                 className={cn(
-                  "hover:bg-muted p-2 rounded-md text-sm",
-                  (activeColumn === 'minutes' && focusedMinute === index) && "bg-muted",
-                  selectedMinute === minute && "bg-primary text-primary-foreground pointer-events-none",
-                  isMinuteDisabled(selectedHour, minute) && "opacity-50 cursor-not-allowed"
+                  "hover:bg-muted p-2 rounded-md text-sm disabled:opacity-50 disabled:line-through ",
+                  activeColumn === "minutes" &&
+                    focusedMinute === index &&
+                    "bg-muted outline  outline-1 ",
+                  selectedMinute === minute &&
+                    "bg-primary text-primary-foreground pointer-events-none"
                 )}
-                onClick={() => !isMinuteDisabled(selectedHour, minute) && selectTime(selectedHour, minute)}
-                disabled={isMinuteDisabled(selectedHour, minute)}
+                disabled={disabledMinute(selectedHour, minute)}
+                onClick={() => selectTime(selectedHour, minute)}
               >
-                {minute.toString().padStart(2, '0')}
+                {minute.toString().padStart(2, "0")}
               </button>
             ))}
           </div>
